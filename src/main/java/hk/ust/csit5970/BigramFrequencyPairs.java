@@ -1,6 +1,7 @@
 package hk.ust.csit5970;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Arrays;
 
 import org.apache.commons.cli.CommandLine;
@@ -53,6 +54,13 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			for (int i = 0; i < words.length - 1; i++) {
+				if (words[i].length() == 0) continue;
+				BIGRAM.set(words[i], words[i + 1]);
+				context.write(BIGRAM, ONE);
+				BIGRAM.set(words[i], "");
+				context.write(BIGRAM, ONE);
+			}
 		}
 	}
 
@@ -64,6 +72,7 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 
 		// Reuse objects.
 		private final static FloatWritable VALUE = new FloatWritable();
+		private final static FloatWritable MARGINAL = new FloatWritable();
 
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
@@ -71,6 +80,18 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> it = values.iterator();
+			VALUE.set(0);
+			while (it.hasNext()) {
+				VALUE.set(VALUE.get() + it.next().get());
+			}
+			if (key.getRightElement().toString().equals("")){
+				MARGINAL.set(VALUE.get()); 
+				context.write(key, VALUE);
+			} else {
+				VALUE.set(VALUE.get() / MARGINAL.get());
+				context.write(key, VALUE);
+			}
 		}
 	}
 	
@@ -84,6 +105,12 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> it = values.iterator();
+			SUM.set(0);
+			while (it.hasNext()) {
+				SUM.set(SUM.get() + it.next().get());
+			}
+			context.write(key, SUM);
 		}
 	}
 

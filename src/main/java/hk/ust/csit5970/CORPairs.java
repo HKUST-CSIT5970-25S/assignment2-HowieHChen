@@ -43,6 +43,9 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	private static class CORMapper1 extends
 			Mapper<LongWritable, Text, Text, IntWritable> {
+		private final static IntWritable ONE = new IntWritable(1);
+		private final static Text WORD = new Text();
+		
 		@Override
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
@@ -53,6 +56,12 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+				String w = doc_tokenizer.nextToken();
+				if (w.length() == 0) continue;
+				WORD.set(w);
+				context.write(WORD, ONE);
+			}
 		}
 	}
 
@@ -61,11 +70,19 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	private static class CORReducer1 extends
 			Reducer<Text, IntWritable, Text, IntWritable> {
+		private final static IntWritable VALUE = new IntWritable();
+
 		@Override
 		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> it = values.iterator();
+			VALUE.set(0);
+			while (it.hasNext()) {
+				VALUE.set(VALUE.get() + it.next().get());
+			}
+			context.write(key, VALUE);
 		}
 	}
 
@@ -74,6 +91,9 @@ public class CORPairs extends Configured implements Tool {
 	 * TODO: Write your second-pass Mapper here.
 	 */
 	public static class CORPairsMapper2 extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
+		private static final IntWritable ONE = new IntWritable(1);
+		private static final PairOfStrings BIGRAM = new PairOfStrings();
+
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 			// Please use this tokenizer! DO NOT implement a tokenizer by yourself!
@@ -81,6 +101,19 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Set<String> wordSet = new TreeSet<String>();
+			while (doc_tokenizer.hasMoreTokens()) {
+				wordSet.add(doc_tokenizer.nextToken());
+			}
+			ArrayList<String> words = new ArrayList<String>(wordSet);
+			for (int i = 0; i < words.size(); i++) {
+				String wordA = words.get(i);
+				for (int j = i + 1; j < words.size(); j++) {
+					String wordB = words.get(j);
+					BIGRAM.set(wordA, wordB);
+					context.write(BIGRAM, ONE);
+				}
+			}
 		}
 	}
 
@@ -88,11 +121,19 @@ public class CORPairs extends Configured implements Tool {
 	 * TODO: Write your second-pass Combiner here.
 	 */
 	private static class CORPairsCombiner2 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
+		private final static IntWritable VALUE = new IntWritable();
+
 		@Override
 		protected void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> it = values.iterator();
+			VALUE.set(0);
+			while (it.hasNext()) {
+				VALUE.set(VALUE.get() + it.next().get());
+			}
+			context.write(key, VALUE);
 		}
 	}
 
@@ -101,6 +142,7 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	public static class CORPairsReducer2 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, DoubleWritable> {
 		private final static Map<String, Integer> word_total_map = new HashMap<String, Integer>();
+		private final static DoubleWritable VALUE = new DoubleWritable();
 
 		/*
 		 * Preload the middle result file.
@@ -145,6 +187,15 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> it = values.iterator();
+			VALUE.set(0);
+			while (it.hasNext()) {
+				VALUE.set(VALUE.get() + it.next().get());
+			}
+			int freqA = word_total_map.get(key.getLeftElement());
+			int freqB = word_total_map.get(key.getRightElement());
+			VALUE.set((double) VALUE.get() / (freqA * freqB));
+			context.write(key, VALUE);
 		}
 	}
 
